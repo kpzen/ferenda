@@ -1730,6 +1730,8 @@ def _run_class_with_basefile(clbl, basefile, version, kwargs, command,
         errmsg = str(e)
         loc = util.location_exception(e)
         label = basefile + ("@%s" % version if version else "")
+        if version:
+            del kwargs['version']
         getlog().error("%s %s %s failed: %s (%s)" %
                        (alias, command, label, errmsg, loc))
         exc_type, exc_value, tb = sys.exc_info()

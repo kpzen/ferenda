@@ -161,9 +161,18 @@ class Trips(SwedishLegalSource):
         soup = BeautifulSoup(util.readfile(path, encoding=encoding), "lxml")
         if encoding == "utf-8":
             content = soup.find("div", "search-results-content")
+            if not content:
+                errnode = soup.find("div", "info-section-part-desc")
+                if errnode and "Ett fel har inträffat" in errnode.text:
+                    raise DocumentRemovedError("%s: %s" % (basefile, errnode.text.strip()),
+                                               dummyfile=self.store.parsed_path(basefile))
+                else:
+                    raise ParseError("%s: has no div.search-results-content" % (basefile),
+                                               dummyfile=self.store.parsed_path(basefile))
+                    
             body = content.find("div", "body-text")
             if not body:
-                raise DocumentRemovedError("%s has no body-text div" % basefile,
+                raise DocumentRemovedError("%s has no div.body-text" % basefile,
                                            dummyfile=self.store.parsed_path(basefile))
             if body.string:
                 body.string = "----------------------------------------------------------------\n\n" + body.string

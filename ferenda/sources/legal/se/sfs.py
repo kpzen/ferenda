@@ -546,19 +546,7 @@ class SFS(Trips):
     def downloaded_to_intermediate(self, basefile, attachment=None, version=None):
         filename = self.store.downloaded_path(basefile, version)
         if not os.path.exists(filename):
-            self.log.warning("Fulltext is missing: %s" % filename)
-            # FIXME: This code (which only runs when fulltext is
-            # missing) needs to be rewritten
-            baseuri = self.canonical_uri(basefile)
-            if baseuri in registry:
-                title = registry[baseuri].value(URIRef(baseuri),
-                                                self.ns['dcterms'].title)
-                desc.value(self.ns['dcterms'].title, title)
-            desc.rel(self.ns['dcterms'].publisher,
-                     self.lookup_resource("Regeringskansliet"))
-            desc.value(self.ns['dcterms'].identifier, "SFS " + basefile)
-            doc.body = Forfattning([Stycke(['Lagtext saknas'],
-                                           id='S1')])
+            raise InteExisterandeSFS(basefile + " saknar fulltext %s" % filename)
         encoding = self._sniff_encoding(filename)
         rawtext = util.readfile(filename, encoding=encoding)
         if not self.config.keepexpired:

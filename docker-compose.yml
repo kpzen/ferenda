@@ -9,6 +9,7 @@ services:
       - "443:443"
     volumes:
       - /mnt/data/lagen/data:/usr/share/nginx/html:ro
+      - /mnt/data/lagen/certificates:/usr/share/nginx/certificates/
     environment:
       - "DOMAIN=lagen.nu"
       - "EMAIL=staffan.malmgren@gmail.com"
@@ -87,16 +88,16 @@ services:
         max-size: "10m"
         max-file: "10"
   matomo:
-    image: matomo
-    volumes:
-      - matomo:/var/www/html
+    image: matomo:5
+    #volumes:
+    #  - matomo:/var/www/html
     environment:
       - MATOMO_DATABASE_HOST=db
       - MYSQL_PASSWORD=ncfeGpSR63xmnyTa
       - MYSQL_DATABASE=matomo
       - MYSQL_USER=root
-    ports:
-      - 8123:80
+    #ports:
+    #  - 8123:8123
     restart: always
     logging:
       options:
@@ -104,6 +105,6 @@ services:
         max-file: "10"
 volumes:
   db:
-  matomo:
+  #matomo:
   fuseki:
   elasticsearch:

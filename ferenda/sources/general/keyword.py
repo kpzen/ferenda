@@ -10,7 +10,7 @@ from collections import defaultdict
 import unicodedata
 import gzip
 import json
-
+import difflib
 
 # 3rdparty libs
 import requests
@@ -146,6 +146,7 @@ class Keyword(DocumentRepository):
         self.log.debug("Retrieved %s subject terms from triplestore" % len(terms))
 
         for termset_func in self.termset_funcs:
+            self.log
             termset_func(terms)
 
         for term in terms:
@@ -156,12 +157,17 @@ class Keyword(DocumentRepository):
             if 'subjects' in terms[term]:
                 terms[term]['subjects'].sort()
             termpath = self.store.downloaded_path(term)
-            # this gets quite slow for 20000 basefiles, maybe we should use json instead of yaml?
+            if "Garanti" in term:
+                log.info("Opening %s" % termpath)
             if os.path.exists(termpath):
                 oldterms = json.loads(util.readfile(termpath))
             if terms[term] != oldterms:
                 util.ensure_dir(termpath)
-                util.writefile(termpath, json.dumps(terms[term], ensure_ascii=False, indent=4))
+                newterms_json = json.dumps(terms[term], ensure_ascii=False, indent=4)
+                oldterms_json = json.dumps(oldterms, ensure_ascii=False, indent=4)
+                diff = "\n".join(difflib.unified_diff(oldterms_json.split("\n"), newterms_json.split("\n"), "before.json", "after.json", n=1))
+                self.log.info("%s: changed -- diff is\n%s" % term, diff)
+                util.writefile(termpath, newterms_json, ensure_ascii=False, indent=4)
                 self.log.info("%s: in %s termsets" % (term, len(terms[term])))
             else:
                 self.log.debug("%s: skipped" % term)

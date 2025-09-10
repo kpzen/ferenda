@@ -570,6 +570,7 @@ dependencies (in the form of source files for the action).
                 path = self.distilled_path(basefile)
             elif action == "generate":
                 path = self.parsed_path(basefile)
+            # print("basefile %s path %s" % (basefile, path))
             if duration == -1 and not force:
                 # Skip files that will raise DocumentRemovedError ?
                 yielded_paths.add(path)
@@ -610,6 +611,10 @@ dependencies (in the form of source files for the action).
             if action == "parse":
                 intermediate_path = os.path.exists(self.intermediate_path(basefile))
             if os.path.getsize(x) > 0 or intermediate_path:
+                if os.path.getsize(x):
+                    print(f"{basefile}: {x}")
+                elif intermediate_path:
+                    print(f"{basefile} <= {self.intermediate_path(basefile)}")
                 yield basefile
             elif action in ("relate", "generate"):
                 trim_documententry(basefile)
@@ -723,6 +728,7 @@ dependencies (in the form of source files for the action).
         mainfiles = ["index" + s for s in suffixmap[action]]
         for x in util.list_dirs(directory, reverse=False):
             # /datadir/base/downloaded/basefile/attachment.txt => attachment.txt
+            
             x = x[len(directory) + 1:]
             if x not in mainfiles:
                 if not [suffix for suffix in self.invalid_suffixes if x.endswith(suffix)]:
