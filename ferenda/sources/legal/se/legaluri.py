@@ -35,6 +35,7 @@ predicate = {"type": RDF.type,
              "section": RPUBL.paragrafnummer,
              "piece": RINFOEX.styckenummer,
              "item": RINFOEX.punktnummer,
+             "artikel": RINFOEX.artikelnummer, # FIX: Tillagd för att fånga artikelnummer
              "myndighet": DCTERMS.publisher,
              "domstol": DCTERMS.publisher,
              "rattsfallspublikation": RPUBL.rattsfallspublikation,  # probably?
@@ -193,8 +194,20 @@ def construct_from_graph(graph):
                 graph.value(bnode, RPUBL.arsutgava),
                 graph.value(bnode, RPUBL.lopnummer))
     elif rdftype == RINFOEX.EUDirektiv:
-        return ("http://rinfo.lagrummet.se/ext/eur-lex/%s" %
-                graph.value(bnode, RPUBL.genomforDirektiv))
+        # --- DEBUG START ---
+        # print(f"\n[DEBUG legaluri] Bygger EU-länk. Kollar grafen:")
+        # for s, p, o in graph:
+        #    print(f"  Predikat: {p} -> Objekt: {o}")
+        #
+        # test_art = graph.value(bnode, RINFOEX.artikelnummer)
+        # print(f"[DEBUG legaluri] RINFOEX.artikelnummer i grafen: {test_art}")
+        # --- DEBUG SLUT ---
+        # FIX: Hantera både grund-URL (CELEX) och eventuella artikelnummer
+        uri = "http://rinfo.lagrummet.se/ext/eur-lex/%s" % graph.value(bnode, RPUBL.genomforDirektiv)
+        artikel = graph.value(bnode, RINFOEX.artikelnummer)
+        if artikel:
+            uri += "#A" + artikel
+        return uri
     else:
         raise ValueError("Don't know how to construct a uri for %s" % rdftype)
 

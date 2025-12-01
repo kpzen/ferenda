@@ -168,6 +168,9 @@
 <http://rinfo.lagrummet.se/org/kammarraetten_i_sundsvall> a foaf:Organization ;
     foaf:name "Kammarrätten i Sundsvall"@sv .
 
+<http://rinfo.lagrummet.se/org/klimat-_och_naeringslivsdepartementet> a foaf:Organization ;
+    foaf:name "Klimat- och näringslivsdepartementet"@sv .
+
 <http://rinfo.lagrummet.se/org/kommundepartementet> a foaf:Organization ;
     foaf:name "Kommundepartementet"@sv .
 
@@ -191,6 +194,9 @@
 
 <http://rinfo.lagrummet.se/org/kustbevakningen> a foaf:Organization ;
     foaf:name "Kustbevakningen"@sv .
+
+<http://rinfo.lagrummet.se/org/landsbygds-_och_infrastrukturdepartementet> a foaf:Organization ;
+foaf:name "Landsbygds- och infrastrukturdepartementet"@sv .
 
 <http://rinfo.lagrummet.se/org/laensraetten_i_blekinge_laen> a foaf:Organization ;
     foaf:name "Länsrätten i Blekinge län"@sv .
@@ -1648,3 +1654,17 @@
 <http://rinfo.lagrummet.se/org/statens_jordbruksverk> a foaf:Organization ;
     foaf:name "Statens jordbruksverk"@sv .
 
+<http://rinfo.lagrummet.se/org/mediemyndigheten> a foaf:Organization ;
+    foaf:name "Mediemyndigheten"@sv .
+
+<http://rinfo.lagrummet.se/org/utbetalningsmyndigheten> a foaf:Organization ;
+    foaf:name "Utbetalningsmyndigheten"@sv .
+
+<http://rinfo.lagrummet.se/org/myndigheten_foer_psykologiskt_foersvar> a foaf:Organization ;
+    foaf:name "Myndigheten för psykologiskt försvar"@sv .
+
+<http://rinfo.lagrummet.se/org/institutet_foer_maenskliga_raettigheter> a foaf:Organization ;
+    foaf:name "Institutet för mänskliga rättigheter"@sv .
+
+<http://rinfo.lagrummet.se/org/myndigheten_foer_totalfoersvarsanalys> a foaf:Organization ;
+    foaf:name "Myndigheten för totalförsvarsanalys"@sv .

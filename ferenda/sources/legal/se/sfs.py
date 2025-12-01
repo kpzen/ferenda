@@ -168,6 +168,10 @@ class SFS(Trips):
                 # shut up logger
                 self.trace[logname].propagate = False
 
+    def _makeimages(self):
+        # Dummy-fix för att undvika krasch i makeresources
+        return []
+
     _start_url = "https://rkrattsbaser.gov.se/sfsr/adv?sort=asc"
     @property
     def start_url(self):

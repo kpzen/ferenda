@@ -20,7 +20,7 @@
 #   limitations under the License.
 
 
-FROM openjdk:11-jre-slim-buster
+FROM eclipse-temurin:11-jre
 MAINTAINER Stian Soiland-Reyes <stain@apache.org>
 
 ENV LANG C.UTF-8

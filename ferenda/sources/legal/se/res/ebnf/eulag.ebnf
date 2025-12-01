@@ -1,39 +1,50 @@
 # -*- coding: iso-8859-1 -*-
 # ------------ eglag.ebnf ----------------
 
-# EG-LAGSTIFTNING - Rättsakter som direktiv, förordningar och själva fördraget
 eulagref ::= (ArtikelRattsaktRef/RattsaktRef/ArtikelRef)+
 
+# ARTIKEL (FIX: Tillåter punktnotation t.ex. 104.8)
+ArtikelRef      ::= 'artikel', Whitespace, ArtikelRefID
+ArtikelRefID    ::= number, ('.', number)?
 
-# "artikel 25.6"
-ArtikelRef     ::= 'artikel',Whitespace,ArtikelRefID, (Period, UnderartikelRefID)?
-ArtikelRefID   ::= number
-UnderartikelRefID ::= number
-
-# "artikel 25.6 i rådets direktiv 96/46/EG"
+# KOPPLING (FIX: Matchar hela frasen artikel X i Y)
 ArtikelRattsaktRef ::= ArtikelRef, Whitespace, 'i', Whitespace, RattsaktRef
 
+# RÄTTSAKT
+RattsaktRef      ::= (Instutition, Whitespace, AkttypRefId, Whitespace,
+                     DirektivRef/ForordningRef, (Whitespace,
+                     AvDatum)?)/DirektivRefID/ForordningRefID
 
-# "rådets direktiv 85/611/EG"
-# "rådets förordning (EEG) nr 2092/91"
-# "kommissionens förordning (EG) nr 1488/94"
-RattsaktRef     ::= (Instutition, Whitespace, AkttypRefId, Whitespace,
-                    DirektivRef/ForordningRef, (Whitespace,
-                    AvDatum)?)/DirektivRefID/ForordningRefID
-Instutition     ::= 'rådets'/('Europaparlamentets', Whitespace, 'och',
+# INSTITUTIONER (Svenska tecken i ISO-8859-1)
+Instutition      ::= 'rådets'/('Europaparlamentets', Whitespace, 'och',
                      Whitespace, 'rådets')/'kommissionens'
-#Instutition    ::= 'rådets'
-AkttypRefId     ::= ('direktiv'/'förordning')
-DirektivRefID   ::= DirektivRef
-DirektivRef     ::= ArRefID, Slash, LopnummerRefID, Slash, SamarbeteRefID
-ForordningRefID ::= ForordningRef
-ForordningRef   ::= LeftParen, SamarbeteRefID, RightParen, (Whitespace,'nr')?, Whitespace, LopnummerRefID, Slash, ArRefID
-ArRefID         ::= digit+  # not Ar, which expects 2 or 4 digit years -- in some cases this might be a lopnummer in the "wrong" place, so anything from 1 to 4 is ok
-LopnummerRefID  ::= Lopnummer
-Lopnummer       ::= number
-SamarbeteRefID  ::= Samarbete
-Samarbete       ::= 'EU'/'EG'/'EEG'
-AvDatum		::= 'av', Whitespace, 'den', Whitespace, DatumRefID
-DatumRefID      ::= Datum
-# ------------ end of eglag.ebnf ----------------
 
+# AKTTYP
+AkttypRefId      ::= ('direktiv'/'förordning')
+
+# DIREKTIV
+DirektivRefID    ::= DirektivRef
+DirektivRef      ::= ArRefID, Slash, LopnummerRefID, Slash, SamarbeteRefID
+
+# FÖRORDNINGAR (FIX: Uppdelad i Gammal/Ny för att hantera år/nr korrekt)
+ForordningRefID  ::= ForordningRef
+
+# Gammalt format: (EG) nr 1234/99 (Löpnummer / År)
+ForordningOldRef ::= LeftParen, ('EG'/'EEG'), RightParen, (Whitespace,'nr')?, Whitespace, LopnummerRefID, Slash, ArRefID
+
+# Nytt format: (EU) 2019/6 (År / Löpnummer)
+# Vi mappar det första talet till ArRefID så att systemet förstår att det är ett år
+ForordningNewRef ::= LeftParen, 'EU', RightParen, (Whitespace,'nr')?, Whitespace, ArRefID, Slash, LopnummerRefID
+
+# Samlad regel (Använder / för ELLER)
+ForordningRef    ::= ForordningNewRef/ForordningOldRef
+
+# DEFINITIONER
+ArRefID          ::= digit+
+LopnummerRefID   ::= Lopnummer
+Lopnummer        ::= number
+SamarbeteRefID   ::= Samarbete
+Samarbete        ::= 'EU'/'EG'/'EEG'
+AvDatum          ::= 'av', Whitespace, 'den', Whitespace, DatumRefID
+DatumRefID       ::= Datum
+# ------------ end of eglag.ebnf ----------------

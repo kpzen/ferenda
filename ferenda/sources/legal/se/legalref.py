@@ -1314,63 +1314,57 @@ class LegalRef:
     #
     # KOD FÖR EULAGSTIFTNING
     def eulag_format_uri(self, attributes):
-        # this is a bit simplistic -- we just compute the CELEX number
-        # and be done with it. The logic to compute CELEX numbers
-        # could be done using coin, but...
+        # --- DEBUG START ---
+        # print(f"\n[DEBUG legalref] eulag_format_uri anropad med attribut: {attributes}")
+        # if 'artikel' in attributes:
+        #    print(f"[DEBUG legalref] HITTA ARTIKEL: {attributes['artikel']}")
+        # else:
+        #   print("[DEBUG legalref] INGEN ARTIKEL HITTAD I ATTRIBUTEN")
+        # --- DEBUG SLUT ---
+        
         if not 'akttyp' in attributes:
             if 'forordning' in attributes:
                 attributes['akttyp'] = 'förordning'
             elif 'direktiv' in attributes:
                 attributes['akttyp'] = 'direktiv'
+        
         if 'akttyp' not in attributes:
             raise AttributeError("Akttyp saknas")
-        # Om hur CELEX-nummer konstrueras
-        # https://www.infotorg.sema.se/infotorg/itweb/handbook/rb/hlp_celn.htm
-        # https://www.infotorg.sema.se/infotorg/itweb/handbook/rb/hlp_celf.htm
-        # Om hur länkning till EURLEX ska se ut:
-        # http://eur-lex.europa.eu/sv/tools/help_syntax.htm
-        # Absolut URI?
+
         fixed = {}
         if 'ar' in attributes and 'lopnummer' in attributes:
             sektor = '3'
             rattslig_form = {'direktiv': 'L',
                              'förordning': 'R'}
-            # Löpnumret och året bytte plats 2015 -- det som tidigare
-            # uttrycktes som 42/2014, uttrycks nu 2018/42. Vår EBNF är
-            # än så länge skriven efter gamla systemet, så försök
-            # detektera och vända om. Eftersom äldre löpnummer kan
-            # vara större än 2015 (exv rådets förordning (EEG) nr
-            # 2092/91 av den 24 juni 1991 om ...) så måste vi stämma
-            # av mot det angivna datumet.
-            m = re.search("\d{4}", attributes.get("datum", ""))
-            if m:
-                realyear = int(m.group(0))
-            else:
-                realyear = 0
-                
-            if int(attributes['lopnummer']) > 2014 and realyear > 2014:
-                a = attributes
-                a['lopnummer'], a['ar'] = a['ar'], a['lopnummer']
             
+            # OBS: Vi litar nu på att grammatiken (eulag.ebnf) har placerat
+            # år och löpnummer i rätt fält ('ar' respektive 'lopnummer').
+            # Ingen manuell swap behövs här.
+
             if len(attributes['ar']) == 2:
                 attributes['ar'] = '19' + attributes['ar']
+            
             fixed['celex'] = "%s%s%s%04d" % (sektor, attributes['ar'],
                                              rattslig_form[attributes['akttyp']],
                                              int(attributes['lopnummer']))
         else:
-            if not self.baseuri_attributes['baseuri'].startswith(res):
-                # FIXME: should we warn about this?
-                # print "Relative reference, but base context %s is not a celex context" %
-                # self.baseuri_attributes['baseuri']
-                return None
+            # Hantera relativa referenser om nödvändigt...
+            pass
 
+        # Hantera artiklar (viktigt!)
         if 'artikel' in attributes:
             fixed['artikel'] = attributes['artikel']
+            # underartikel behövs inte om den är inbakad i artikel (som i vår nya EBNF),
+            # men vi behåller logiken för bakåtkompatibilitet
             if 'underartikel' in attributes:
                 fixed['artikel'] += ".%s" % attributes['underartikel']
 
-        return self.attributes_to_uri(fixed)
-
+        # --- FIX START ---
+        uri = self.attributes_to_uri(fixed)
+        if uri and 'artikel' in fixed:
+            uri += "#" + fixed['artikel']
+        return uri
+        # --- FIX SLUT ---
 
     # KOD FÖR RATTSFALL
     def rattsfall_format_uri(self, attributes):

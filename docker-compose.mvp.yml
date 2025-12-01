@@ -1,0 +1,33 @@
+services:
+  # Applikations-containern med din kod och alla verktyg
+  ferenda:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ferenda-mvp-image
+    entrypoint: tail -f /dev/null
+    volumes:
+      # Kopplar din lokala kod till containern så ändringar syns direkt
+      - .:/usr/share/ferenda
+      # Sparar nedladdad data (lagar, PDFer) så den finns kvar om du startar om
+      - ./data:/usr/share/ferenda/data
+    command: tail -f /dev/null  # Håller containern vid liv så vi kan jobba i den
+    environment:
+      - "FERENDA_HOME=/usr/share/ferenda"
+    depends_on:
+      - fuseki
+
+  # Grafdatabasen (TripleStore) för metadata
+  fuseki:
+    build:
+      context: docker/fuseki
+    volumes:
+      - fuseki-data:/fuseki
+    ports:
+      - "3030:3030" # Du kan nå databasen på localhost:3030
+    environment:
+      - "JVM_ARGS=-Xmx2g"
+      - "FUSEKI_DATASET_1=ferenda"
+
+volumes:
+  fuseki-data:
