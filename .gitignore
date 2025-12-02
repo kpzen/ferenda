@@ -21,3 +21,5 @@ devtools.py
 __pycache__/
 /doc/_build/
 kravanalys/data/
+kravanalys/ferenda.ini
+ferenda.ini
