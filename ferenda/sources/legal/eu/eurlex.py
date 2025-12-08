@@ -88,8 +88,9 @@ class EURLex(DocumentRepository):
         return opts
 
     def dump_graph(self, celexid, graph):
+        return # <--- LÄGG TILL DETTA FÖR ATT STOPPA SKRIVANDET TILL DISK
         with self.store.open_intermediate(celexid, "wb", suffix=".ttl") as fp:
-            fp.write(graph.serialize(format="ttl"))
+             fp.write(graph.serialize(format="ttl"))
 
     def query_webservice(self, query, page):
         # this is the only soap template we'll need, so we include it
@@ -186,88 +187,121 @@ class EURLex(DocumentRepository):
         return graph
     
     def find_manifestation(self, cellarid, celexid):
-        cellarurl = "http://publications.europa.eu/resource/cellar/%s?language=%s" % (cellarid, self.languages[0])
+        # 1. Konfigurera språk
+        target_languages = self.config.languages
+        if isinstance(target_languages, str):
+            target_languages = target_languages.split()
+
+        cellarurl = "http://publications.europa.eu/resource/cellar/%s?language=%s" % (cellarid, target_languages[0])
         graph = self.get_treenotice_graph(cellarurl, celexid)
         if graph is None:
             return None, None, None, None
         
-        # find the root URI -- it might be on the form
-        # "http://publications.europa.eu/resource/celex/%s", but can
-        # also take other forms (at least for legislation)
-        # At the same time, find all expressions of this work (ie language versions).
         CDM = Namespace("http://publications.europa.eu/ontology/cdm#")
         CMR = Namespace("http://publications.europa.eu/ontology/cdm/cmr#")
-        root = None
+        
+        # 2. Hitta rätt språkuttryck (Startpunkter)
         candidateexpressions = {}
-        for expression, work in graph.subject_objects(CDM.expression_belongs_to_work):
-            assert root is None or work == root
-            root = work
-            expression = Resource(graph, expression)
-            lang = expression.value(CDM.expression_uses_language)
-            lang = str(lang.identifier).rsplit("/", 1)[1].lower()
-            if lang in self.config.languages:
-                candidateexpressions[lang] = expression
+        for s, o in graph.subject_objects(CDM.expression_uses_language):
+            lang_code = str(o).rsplit("/", 1)[-1].lower()
+            if lang_code in target_languages:
+                candidateexpressions[lang_code] = s
 
         if not candidateexpressions:
-            self.log.warning("%s: Found no suitable languages" % celexid)
-            self.dump_graph(celexid, graph)
+            self.log.warning("%s: Found no suitable languages (checked %s)" % (celexid, target_languages))
             return None, None, None, None
 
-        for lang in self.config.languages:
+        # 3. Leta filer
+        for lang in target_languages:
             if lang in candidateexpressions:
-                expression = candidateexpressions[lang]
-                candidateitem = {}
-                # we'd like to order the manifestations in some preference order -- fmx4 > xhtml > html > pdf
-                for manifestation in expression.objects(CDM.expression_manifested_by_manifestation):
-                    manifestationtype = str(manifestation.value(CDM.type))
-                    # there might be multiple equivalent
-                    # manifestations, eg
-                    # ...celex/62001CJ0101.SWE.fmx4,
-                    # ...ecli/ECLI%3AEU%3AC%3A2003%3A596.SWE.fmx4 and
-                    # ...cellar/bcc476ae-43f8-4668-8404-09fad89c202a.0011.01. Try
-                    # to find out if that is the case, and get the "root" manifestation
-                    rootmanifestations = list(manifestation.subjects(OWL.sameAs))
-                    if rootmanifestations:
-                        manifestation = rootmanifestations[0]
-                    items = list(manifestation.subjects(CDM.item_belongs_to_manifestation))
-                    if len(items) == 1: 
-                        candidateitem[manifestationtype] = items[0]
-                    elif len(items) == 2:
-                        # NOTE: for at least 32016L0680, there can be
-                        # two items of the fmx4 manifestation, where
-                        # one (DOC_1) is bad (eg only a reference to
-                        # the pdf file) and the other (DOC_2) is
-                        # good. The heuristic for choosing the good
-                        # one: if the owl:sameAs property ends in .xml
-                        # but not .doc.xml...
-                        for item in items:
-                            # this picks a random object if there are
-                            # two or more owl:sameAs triples, but the
-                            # heuristic seems to work with all
-                            # owl:sameAs objects
-                            sameas = str(item.value(OWL.sameAs).identifier)
-                            if sameas.endswith(".xml") and not sameas.endswith(".doc.xml"):
-                                candidateitem[manifestationtype] = item
-                                break
+                start_expression_uri = candidateexpressions[lang]
+                
+                # --- OMNI-SEARCH EXPRESSION LEVEL ---
+                # Samla alla alias för UTTRYCKET (IMMC, OJ, etc)
+                expression_aliases = set([start_expression_uri])
+                # Vad pekar den på?
+                for obj in graph.objects(start_expression_uri, OWL.sameAs): 
+                    expression_aliases.add(obj)
+                # Vad pekar PÅ den?
+                for subj in graph.subjects(OWL.sameAs, start_expression_uri): 
+                    expression_aliases.add(subj)
+                
+                self.log.info(f"DEBUG: Letar filer för språk '{lang}' via {len(expression_aliases)} st uttryck-alias")
 
+                candidateitem = {}
+
+                # Loopa över ALLA uttryckets alias för att hitta manifestationer
+                manifestations = set()
+                for expr_uri in expression_aliases:
+                    for man in graph.objects(expr_uri, CDM.expression_manifested_by_manifestation):
+                        manifestations.add(man)
+                
+                for man_uri in manifestations:
+                    man_str = str(man_uri)
+                    
+                    # --- OMNI-SEARCH MANIFESTATION LEVEL ---
+                    # Samla alias för MANIFESTATIONEN
+                    man_aliases = set([man_uri])
+                    for obj in graph.objects(man_uri, OWL.sameAs): man_aliases.add(obj)
+                    for subj in graph.subjects(OWL.sameAs, man_uri): man_aliases.add(subj)
+                    
+                    found_items = []
+                    for alias in man_aliases:
+                        found_items.extend(list(graph.subjects(CDM.item_belongs_to_manifestation, alias)))
+
+                    # Identifiera typ
+                    mtype = None
+                    for alias in man_aliases:
+                        for t in graph.objects(alias, CDM.type):
+                            mtype = str(t)
+                            break
+                        if mtype: break
+                    
+                    # Gissa typ från URL
+                    if not mtype:
+                        if ".xhtml" in man_str: mtype = "xhtml"
+                        elif ".fmx4" in man_str: mtype = "fmx4"
+                        elif ".pdf" in man_str: mtype = "pdf"
+                        else: mtype = "unknown"
+
+                    # Välj URL
+                    selected_url = None
+                    if found_items:
+                        best_item = found_items[0]
+                        if len(found_items) > 1:
+                            for item in found_items:
+                                try:
+                                    sameas_url = str(item.value(OWL.sameAs).identifier)
+                                    if sameas_url.endswith(".xml") and not sameas_url.endswith(".doc.xml"):
+                                        best_item = item
+                                        break
+                                except:
+                                    pass
+                        selected_url = str(best_item)
+                    else:
+                        # Fallback: Använd manifestationen direkt
+                        selected_url = man_str
+
+                    if selected_url:
+                        candidateitem[mtype] = selected_url
+
+                # Prioritera format och returnera
                 if candidateitem:
-                    for t in ("fmx4", "xhtml", "html", "pdf", "pdfa1a"):
+                    for t in ("xhtml", "fmx4", "html", "pdf", "pdfa1a", "unknown"):
                         if t in candidateitem:
-                            item = candidateitem[t]
-                            mimetype = str(item.value(CMR.manifestationMimeType))
-                            self.log.info("%s: Has manifestation %s (%s) in language %s" % (celexid, t,mimetype, lang))
-                            # we might need this even outside of
-                            # debugging (eg when downloading
-                            # eurlexcaselaw, the main document lacks
-                            # keywords, classifications, instruments
-                            # cited etc.
+                            url = candidateitem[t]
+                            
+                            mimetype = "application/octet-stream"
+                            if t == "xhtml": mimetype = "application/xhtml+xml"
+                            elif t == "fmx4": mimetype = "application/xml"
+                            elif t == "pdf": mimetype = "application/pdf"
+                            elif t == "html": mimetype = "text/html"
+                            
+                            self.log.info("%s: Has manifestation %s (%s) in language %s (URL: %s)" % (celexid, t, mimetype, lang, url))
                             self.dump_graph(celexid, graph) 
-                            return lang, t, mimetype, str(item.identifier)
-                else:
-                    if candidateitem:
-                        self.log.warning("%s: Language %s had no suitable manifestations" %
-                                         (celexid, lang))
-        self.log.warning("%s: No language (tried %s) had any suitable manifestations" % (celexid, ", ".join(candidateexpressions.keys())))
+                            return lang, t, mimetype, url
+        
+        self.log.warning("%s: Failed to find manifestation for %s" % (celexid, target_languages))
         self.dump_graph(celexid, graph)
         return None, None, None, None
 
@@ -288,11 +322,16 @@ class EURLex(DocumentRepository):
             assert match
             celex = match.group(1)
             assert celex == basefile
+            
             lang, filetype, mimetype, url = self.find_manifestation(cellarid, celex)
+            
+            # BUGGFIX: Kontrollera om vi fick tillbaka något giltigt format
+            if not filetype:
+                self.log.error("%s: Download failed - no suitable filetype found" % basefile)
+                return False 
+
             # FIXME: This is an ugly way of making sure the downloaded
-            # file gets the right suffix (due to
-            # DocumentStore.downloaded_path choosing a filename from among
-            # several possible suffixes based on what file already exists
+            # file gets the right suffix
             downloaded_path = self.store.path(basefile, 'downloaded', '.'+filetype)
             if not os.path.exists(downloaded_path):
                 util.writefile(downloaded_path, "")
@@ -364,18 +403,28 @@ class EURLex(DocumentRepository):
     def parse(self, doc):
         doc.meta = self.metadata_from_basefile(doc)
         source = self.store.downloaded_path(doc.basefile)
-        # maybe derive some metadata (type, year, number) from
-        # basefile? It's probably not warranted to have a special
-        # parse_metadata stage for these documents, we can extract
-        # title, dates and other essential metadata from the body.
+        
         if source.endswith(".fmx4"):
             doc.body = self.parse_formex(doc, source)
-        elif source.endswith(".html"):
+        # BUGGFIX: Vi lägger till .xhtml här så att den inte kraschar
+        elif source.endswith(".html") or source.endswith(".xhtml"):
             doc.body = self.parse_html(doc, source)
         else:
             raise errors.ParseError("Can't yet parse %s" % source)
         self.parse_entry_update(doc)
-        return True  # Signals that everything is OK
+        return True
+
+    def parse_html(self, doc, source):
+        with open(source, "rb") as fp:
+            # Fall 1: Gammal HTML (ofta slarvig kod, kräver "förlåtande" parser)
+            if source.endswith(".html"):
+                parser = etree.HTMLParser(encoding="utf-8")
+                return etree.parse(fp, parser)
+            
+            # Fall 2: XHTML (Ska vara strikt XML, men vi säkrar upp teckenkodningen)
+            else:
+                parser = etree.XMLParser(encoding="utf-8")
+                return etree.parse(fp, parser)
 
     def parse_formex(self, doc, source):
         parser = etree.XMLParser(remove_blank_text=True)

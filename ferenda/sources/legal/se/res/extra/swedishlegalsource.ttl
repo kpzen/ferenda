@@ -1668,3 +1668,7 @@ foaf:name "Landsbygds- och infrastrukturdepartementet"@sv .
 
 <http://rinfo.lagrummet.se/org/myndigheten_foer_totalfoersvarsanalys> a foaf:Organization ;
     foaf:name "Myndigheten för totalförsvarsanalys"@sv .
+
+<http://rinfo.lagrummet.se/org/statens_jordbruksverk> a foaf:Organization ;
+skos:altLabel "Jordbruksverket"@sv ;
+foaf:name "Statens jordbruksverk"@sv .
